@@ -1,30 +1,30 @@
 # Architecture
 
-## Purpose
+`tf-plan-summary` processes Terraform plan JSON streams and calculates risk summaries.
 
-`github.com/Trysac/u181-tf-plan-summary` is a small, dependency-free Go library: Summarize terraform show -json plans by risk: replace and delete detection, protected resource rules, attribute names without values, Markdown or JSON
+## Core Components
 
-## Shape
+1. **Parser (`Parse`)**:
+   - Reads JSON using an `io.LimitReader` bounded by `Options.MaxBytes` (default 50 MiB).
+   - Validates major version `1.x` of the Terraform JSON output specification.
+   - Unmarshals resource changes and maps action combinations:
+     - `["create"]` -> Create (Low)
+     - `["update"]` -> Update (Medium)
+     - `["delete"]` -> Delete (High)
+     - `["delete", "create"]` / `["create", "delete"]` -> Replace (High)
+     - `["read"]` and `["no-op"]` are skipped.
 
-```text
-caller code --> package tfplansummary (repository root)
-                    |
-                    +-- pure functions, no I/O, no global mutable state
-                    +-- internal/ (optional private helpers)
-```
+2. **Attribute Diffing Engine**:
+   - Inspects `before` and `after` maps with `reflect.DeepEqual` on decoded values.
+   - Incorporates `after_unknown` attributes formatted as `<name> (known after apply)`.
+   - Checks `before_sensitive` and `after_sensitive` trees (recursively scanning map and slice leaves) to flag sensitive attributes with ` (sensitive)`.
+   - Retains only attribute names; attribute values are discarded immediately to guarantee no values leak into output or logs.
 
-- **Public API**: every exported identifier of the root package. Unexported identifiers and
-  `internal/` packages may change without a major version.
-- **Errors**: invalid input returns an error; exported sentinel errors (such as `ErrBlank`) let
-  callers branch with `errors.Is`. The library never panics on input, prints or exits.
-- **Side effects**: none. If a feature needs I/O, accept an interface (`io.Reader` or a small
-  custom one) instead of opening resources, and record the choice in an ADR.
+3. **Risk Policy Evaluator**:
+   - Assigns a base level per action.
+   - Evaluates glob rules against `rc.Type` using `path.Match`.
+   - Maintains the invariant that custom rules can elevate risk, but never lower the base action level.
 
-## Quality contract
-
-`scripts/check` is the single definition of the gates; `fabrica.json` tells the factory and CI
-how to run it. See [TESTING.md](TESTING.md).
-
-## Decisions
-
-Architecture decisions are recorded in [decisions/](decisions/) as numbered ADRs.
+4. **Formatters**:
+   - `RenderMarkdown`: produces GitHub-compatible Markdown summary lines and tables, escaping pipe `|` characters in resource addresses and names, truncating attribute diffs over 20 items to `+N more`.
+   - JSON serialization: lowercase snake_case JSON struct tags.
