@@ -1,0 +1,16 @@
+{
+  "format_version": "1.0",
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.main",
+      "type": "aws_db_instance",
+      "change": {
+        "actions": ["update"],
+        "before": {"password": "supersecret123"},
+        "after": {"password": "updatedsecret456"},
+        "before_sensitive": {"password": true},
+        "after_sensitive": {"password": true}
+      }
+    }
+  ]
+}

@@ -1,26 +1,32 @@
-# Project record
+# Project Record
+
+`tf-plan-summary` is a lightweight, zero-dependency Go library and CLI for extracting risk indicators and summaries from Terraform JSON plans.
 
 ## Objective
 
-Summarize terraform show -json plans by risk: replace and delete detection, protected resource rules, attribute names without values, Markdown or JSON
+To provide a mechanism for CI pipelines to safely evaluate infrastructure changes without leaking sensitive values, by strictly outputting attribute names and risk levels.
 
 ## Scope
 
-- In scope: the public API documented in [README.md](../README.md), documented and tested.
-- Out of scope: anything that needs dependencies or I/O without an accepted ADR.
+- Parsing Terraform JSON plan files (`format_version` 1).
+- Detection of resource replacements and deletes.
+- Assigning risk levels via configurable rulesets.
+- Generating human-readable Markdown or machine-readable JSON summaries.
 
-## Timeline
+## Out of Scope
 
-| Date | Event |
-|---|---|
-| 2026 | Repository created from the factory utility template. |
+- Executing Terraform binaries or managing plan generation.
+- Detecting drift (resource_drift).
+- Cost estimation.
+- Complex policy-as-code languages (e.g., Rego).
+- Detecting modifications to Terraform output variables.
 
-## Effort metrics
+## Factory run u181 (measured from API usage)
 
-Measured values only; a value that has not been measured stays "pending measurement".
+| Phase | Model | Batch | Input | Output | Cache write | Cache read | Cost (USD) |
+|---|---|---|---|---|---|---|---|
+| generation | gemini-3.8-flash | yes | 4560 | 51840 | 0 | 0 | 0.0989 |
+| audit | gemini-3.1-flash-lite | no | 24321 | 307 | 0 | 10191 | 0.0068 |
+| docs | gemini-3.1-flash-lite | no | 4489 | 1458 | 0 | 0 | 0.0033 |
 
-| Metric | Value |
-|---|---|
-| Tokens (input / output) | pending measurement |
-| Hours (human) | pending measurement |
-| Cost (USD) | pending measurement |
+Total: $0.1090. Prices: Anthropic list prices.

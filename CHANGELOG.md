@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Implement risk-based Terraform plan summarization with Markdown/JSON rendering and CLI
 - Initial project structure from the factory utility template.

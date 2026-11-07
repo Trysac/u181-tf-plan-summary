@@ -1,25 +1,12 @@
-# Testing
+# Testing Strategy
 
-## Running
+Tests are located in `tfplansummary_test.go` and use package `tfplansummary_test`. Tests operate strictly on JSON fixtures in `testdata`.
 
-```sh
-go test -cover .          # tests with coverage summary
-go run ./scripts/check    # every gate, as CI and the factory run it
-```
+## Covered Scenarios
 
-## Policy
-
-- Statement coverage of the library (every package except `scripts/`) must stay at or above 80 %;
-  the gate fails below it.
-- Tests live in package `tfplansummary_test` and exercise the public API only. They assert every
-  observable effect: return values, returned errors (`errors.Is`) and their messages.
-- Prefer table-driven tests with `t.Run` subtests; document usage with runnable `Example`
-  functions, which `go test` verifies through their `// Output:` comments.
-- The race detector runs whenever cgo and a C compiler are available (always in Linux CI); the
-  gate prints why when it has to run without it.
-- Each bug fix starts with a failing test that reproduces it.
-- Tests are deterministic: no network, no wall clock, no dependence on test order.
-
-## Layout
-
-`<file>_test.go` sits next to the file it tests. Fixtures and golden files go in `testdata/`.
+- **Parsing**: Validates `Parse` logic for mixed resource actions (create, update, delete, replace, read/no-op) and version enforcement (rejects `format_version` 2).
+- **Risk Evaluation**: Verifies that rules properly elevate risk but cannot lower base action risk; validates default rule critical/high risk thresholds.
+- **Attribute Diffing**: Ensures attribute keys are correctly identified, sensitive masks applied, and that values are stripped. Checks that unknown attributes get `(known after apply)` suffix.
+- **Markdown/JSON**: Validates rendering of tables, escaping of `|`, and truncation of attribute lists exceeding 20 items.
+- **Error Handling**: Confirms accurate `errors.Is` checks for `ErrTooLarge`, `ErrInvalidPlan`, and `ErrUnsupportedFormat`.
+- **CLI**: Integration tests check `Run` exit codes (0 for success, 1 for risk threshold breach, 2 for usage/io errors) and CLI flag parsing.

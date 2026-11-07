@@ -1,55 +1,46 @@
 # tf-plan-summary
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/Trysac/u181-tf-plan-summary.svg)](https://pkg.go.dev/github.com/Trysac/u181-tf-plan-summary)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Trysac/u181-tf-plan-summary/actions/workflows/ci.yml/badge.svg)](https://github.com/Trysac/u181-tf-plan-summary/actions/workflows/ci.yml)
 
-Summarize terraform show -json plans by risk: replace and delete detection, protected resource rules, attribute names without values, Markdown or JSON
+Summarize `terraform show -json` plans by risk: replace and delete detection, protected resource rules, attribute names without values, Markdown or JSON output.
 
-## Problem
+## Overview
 
-Describe in two or three sentences the concrete problem this utility solves, who hits it, and what
-they do today without it. Replace this paragraph when the first real feature lands.
+Terraform plans for real infrastructure run to thousands of lines. Reviewers routinely miss the one database that will be replaced or the IAM change hidden among tag updates. Raw plan output also prints values, including secrets, into CI logs and pull request comments.
 
-## Install
+`tf-plan-summary` reads the standard JSON plan output, ranks changes by configurable risk policies, detects replacements and deletes, and renders a concise summary that lists attribute names but never secret or raw values.
 
-```sh
-go get github.com/Trysac/u181-tf-plan-summary
+## Installation
+
+```bash
+go install github.com/Trysac/u181-tf-plan-summary/cmd/tf-plan-summary@latest
 ```
-
-Requires Go 1.23 or newer. No dependencies outside the standard library.
 
 ## Usage
 
 ```go
-package main
-
-import (
-	"errors"
-	"fmt"
-
-	"github.com/Trysac/u181-tf-plan-summary"
-)
-
-func main() {
-	// Normalize trims surrounding whitespace and lower-cases the text.
-	out, _ := tfplansummary.Normalize("  Hello World ")
-	fmt.Println(out) // -> "hello world"
-
-	// Blank input is rejected explicitly instead of returning an empty string.
-	if _, err := tfplansummary.Normalize("   "); errors.Is(err, tfplansummary.ErrBlank) {
-		fmt.Println("rejected:", err)
-	}
+planJSON := `{"format_version":"1.0","resource_changes":[{"address":"aws_s3_bucket.b","type":"aws_s3_bucket","change":{"actions":["delete"]}}]}`
+summary, err := tfplansummary.Parse(strings.NewReader(planJSON), tfplansummary.Options{})
+if err != nil {
+	log.Fatal(err)
 }
+fmt.Println(tfplansummary.RenderMarkdown(summary))
 ```
 
-## Documentation
+## API Summary
 
-- [Architecture](docs/ARCHITECTURE.md) and [decisions](docs/decisions/)
-- [Testing](docs/TESTING.md) and [security](docs/SECURITY.md)
-- [Project record](docs/PROJECT.md) and [stack](docs/STACK.md)
-- [Changelog](CHANGELOG.md) and [contributing guide](CONTRIBUTING.md)
+- `Parse(io.Reader, Options) (*Summary, error)`: Parses JSON input. Limits read bytes to `Options.MaxBytes` (default 52,428,800). Returns `ErrTooLarge`, `ErrInvalidPlan`, or `ErrUnsupportedFormat`.
+- `RenderMarkdown(*Summary) string`: Outputs risk-ranked Markdown summary with escaped pipe characters.
+- `Run([]string, io.Writer, io.Writer) int`: CLI entry point handling arguments like `--fail-on` and `--format`.
 
-## License
+## Limits and Options
 
-[MIT](LICENSE) (c) 2026 Miguel Gomez
+- **Input**: Terraform `format_version` major 1.
+- **Risk Levels**: None, Low, Medium, High, Critical.
+- **Action Mapping**: `["create"]` (Low), `["update"]` (Medium), `["delete"]` (High), `["delete","create"]`/`["create","delete"]` (Replace/High). Reads/No-ops are ignored.
+
+## Why not tf-summarize or OPA?
+
+Unlike alternatives, this utility requires zero installation outside Go, is safe for public logs because it never extracts values, and manages risk levels as plain Go data.
+
+See [docs/SECURITY.md](docs/SECURITY.md).
